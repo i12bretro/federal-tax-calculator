@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+      * { font-size: 103%; font-family: sans-serif; color: #ccc; box-sizing: border-box; scrollbar-face-color: ThreeDFace !important; scrollbar-shadow-color: ThreeDDarkShadow !important; scrollbar-highlight-color: ThreeDHighlight !important; scrollbar-3dlight-color: ThreeDLightShadow !important; scrollbar-darkshadow-color: ThreeDDarkShadow !important; scrollbar-track-color: Scrollbar !important; scrollbar-arrow-color: ButtonText !important; }
+      html, body { padding: 0; margin: 0; background: rgba(22,22,22,1); }
+			::-webkit-scrollbar { width: 6px; height: 6px; }
+			::-webkit-scrollbar-thumb { background: #5a5e78; border-radius: 0px; }
+			::-webkit-scrollbar-thumb:hover { background: #888; }
+			::-webkit-scrollbar-track { background: #555; border-radius: 0px; box-shadow: inset 0px 0px 0px 0px #F0F0F0; }
+			html, body { padding: 0; margin: 0; background: rgba(22,22,22,1); }
+			body { width: 100vw; height: 100vh; background: radial-gradient(circle, rgba(108,108,108,1) 0%, rgba(22,22,22,1) 79%, rgba(21,31,33,0) 79%, rgba(22,22,22,0) 100%); }
+			#container { padding: 10px; width: 100vw; height: 100vh; }
+      #calculator { background: rgba(100,180,180,0.1); box-shadow: 6px 6px #111; width: 95vw; max-width: 960px; margin: 10vh auto; padding: 12px; border-radius: 12px; border: 3px ridge #999; display: grid; grid-template-columns: 1fr 40px 1fr; grid-row-gap: 10px; grid-column-gap: 10px; }
+      form div { padding: 5px 0; }
+      div label:nth-child(1) { display: block; font-variant: small-caps; font-weight: bold; margin: 5px 0; }
+      input, select { background: #333; padding: 4px; border-radius: 8px; margin-left: 10px;  }
+      input[type=number] { width: 125px; }
+      #paychecks { width: 55px; }
+      h2 { grid-column: 1 / 4; text-align: center; font-size: 1.2em; color: #fff; }
+
+      @media screen and (max-width: 835px) {
+        h2 { grid-column: 1 / 2; }
+        #calculator { display: grid; grid-template-columns: 1fr; grid-row-gap: 20px; transition: grid-template-rows .4s ease-out; }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="container">
+      <div id="calculator">
+        <h2>2021 Federal Withholding Calculator</h2>
+        <div>
+          <form action="#" id="calc" autocomplete="off">
+            <div>
+              <label for="filingS">Filing Status:</label>
+              <input type="radio" name="filing" id="filingS" value="single" CHECKED /> <label for="filingS">Single</label>
+              &nbsp;<input type="radio" name="filing" id="filingJ" value="joint" /> <label for="filingJ">Joint</label>
+              &nbsp;<input type="radio" name="filing" id="filingH" value="head" /> <label for="filingH">Head of House</label>
+            </div>
+            <div>
+              <label for="income">Total Household Income:</label>
+              <input type="number" name="income" id="income" min="0" REQUIRED />
+            </div>
+            <div>
+              <label for="deduction">Deduction:</label>
+              <input type="number" name="deduction" id="deduction" min="0" value="24000" REQUIRED />
+            </div>
+            <div>
+              <label for="children"># of Children:</label>
+                <select name="children" id="children">
+                  <option value="0">0</option>
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                  <option value="4">4</option>
+                  <option value="5">5</option>
+                  <option value="6">6</option>
+                  <option value="7">7</option>
+                  <option value="8">8</option>
+                  <option value="9">9</option>
+                  <option value="10">10</option>
+                  <option value="11">11</option>
+                  <option value="12">12</option>
+                </select>
+            </div>
+            <div>
+              <label for="paychecks">Number of Paychecks:</label>
+              <input type="number" name="paychecks" id="paychecks" min="1" REQUIRED />
+            </div>
+            <div>
+              <br /><input type="submit" value="Calculate Taxes" />
+            </div>
+          </form>
+        </div>
+        <div></div>
+        <div id="output"></div>
+      </div>
+    </div>
+  </body>
+  <script>
+    moneyFormat = { style:'currency', currency:'USD', minimumFractionDigits: 0 };
+    childDeduction = 2000;
+    taxableIncome = [];
+    taxBrackets = {
+      single: {
+        0: { rate: 0.10, start: 0,        stop: 9950 },
+        1: { rate: 0.12, start: 9951,     stop: 40525 },
+        2: { rate: 0.22, start: 40526,    stop: 86375 },
+        3: { rate: 0.24, start: 86376,    stop: 164925 },
+        4: { rate: 0.32, start: 164926,   stop: 209425 },
+        5: { rate: 0.35, start: 209426,   stop: 523600 },
+        6: { rate: 0.37, start: 523601,   stop: 999999999999 }
+      },
+      joint: {
+        0: { rate: 0.10, start: 0,        stop: 19900 },
+        1: { rate: 0.12, start: 19901,    stop: 81050 },
+        2: { rate: 0.22, start: 81051,    stop: 172750 },
+        3: { rate: 0.24, start: 172751,   stop: 329850 },
+        4: { rate: 0.32, start: 329851,   stop: 418850 },
+        5: { rate: 0.35, start: 418851,   stop: 628300 },
+        6: { rate: 0.37, start: 628301,   stop: 999999999999 }
+      },
+      head: {
+        0: { rate: 0.10, start: 0,        stop: 14200 },
+        1: { rate: 0.12, start: 14201,     stop: 54200 },
+        2: { rate: 0.22, start: 54201,    stop: 86350 },
+        3: { rate: 0.24, start: 86351,    stop: 164900 },
+        4: { rate: 0.32, start: 164901,   stop: 209400 },
+        5: { rate: 0.35, start: 209401,   stop: 523600 },
+        6: { rate: 0.37, start: 523601,   stop: 999999999999 }
+      }
+    }
+    $(function(){
+      $(document).on('submit','#calc', async function(e){
+        e.preventDefault();
+        taxableIncome = [];
+        fields = await formFieldsArray($(this).serialize());
+        output = $('#output');
+        output.empty();
+        taxableIncome.push(fields['income']);
+        output.append(`Household income:<br />&emsp;${taxableIncome[taxableIncome.length-1].toLocaleString('en-US', moneyFormat)}`);
+        taxableIncome.push(taxableIncome[taxableIncome.length-1] - fields['deduction']);
+        output.append(`<br />Deduction:<br />&emsp;${taxableIncome[taxableIncome.length-2].toLocaleString('en-US', moneyFormat)} - ${fields['deduction'].toLocaleString('en-US', moneyFormat)} = ${taxableIncome[taxableIncome.length-1].toLocaleString('en-US', moneyFormat)}`);
+        if(fields['children'] > 0){
+          taxableIncome.push(taxableIncome[taxableIncome.length-1] - (fields['children'] * childDeduction));
+          output.append(`<br />Child deduction:<br />&emsp;${taxableIncome[taxableIncome.length-2].toLocaleString('en-US', moneyFormat)} - (${childDeduction.toLocaleString('en-US', moneyFormat)} * ${fields['children']}) = ${taxableIncome[taxableIncome.length-1].toLocaleString('en-US', moneyFormat)}`);
+        }
+        
+        fedTax = await calculateTax(taxableIncome[taxableIncome.length-1]);
+
+        output.append(`<br /><strong>Estimated tax due:<br />&emsp;${(fedTax).toLocaleString('en-US', moneyFormat)}</strong>`);
+
+        output.append(`<br /><br /><strong>&emsp;${(fedTax / fields['paychecks']).toLocaleString('en-US', moneyFormat)} per paycheck</strong>`);
+        if(fields['filing'] == 'joint'){
+          output.append(`<br /><strong>&emsp;${((fedTax / fields['paychecks']) / 2).toLocaleString('en-US', moneyFormat)} per person, per paycheck</strong>`);
+        }
+        return false;
+      });
+    });
+
+    function calculateTax(income){
+      calcFormat = { style:'currency', currency:'USD' };
+      output = $('#output');
+      output.append(`<br /><br />Bracket breakdown:<br />`);
+      calc = income;
+      tax = 0;
+      for(i=6;i>-1;i--){
+        if(calc >= taxBrackets[fields['filing']][i].start){
+          thisBracket = (calc - taxBrackets[fields['filing']][i].start);
+          tax += (thisBracket * taxBrackets[fields['filing']][i].rate);
+          calc = calc - thisBracket;
+          output.append(`&emsp;&emsp;${(thisBracket * taxBrackets[fields['filing']][i].rate).toLocaleString('en-US', calcFormat)} in the ${(taxBrackets[fields['filing']][i].rate * 100)}% backet<br />`);
+        }
+      }
+
+      return tax;
+    }
+
+    function formFieldsArray(data){
+      fieldArray = [];
+      data.split('&').forEach((field) => {
+        keyVal = field.split('=');
+        if(isNaN(keyVal[1])){
+          fieldArray[keyVal[0]] = keyVal[1];
+        } else {
+          fieldArray[keyVal[0]] = parseInt(keyVal[1]);
+        }
+      });
+      return fieldArray;
+    }
+  </script>
+</html>
