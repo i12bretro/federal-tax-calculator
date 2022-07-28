@@ -3,7 +3,7 @@
   <head>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <style>
-      * { font-size: 103%; font-family: sans-serif; color: #ccc; box-sizing: border-box; scrollbar-face-color: ThreeDFace !important; scrollbar-shadow-color: ThreeDDarkShadow !important; scrollbar-highlight-color: ThreeDHighlight !important; scrollbar-3dlight-color: ThreeDLightShadow !important; scrollbar-darkshadow-color: ThreeDDarkShadow !important; scrollbar-track-color: Scrollbar !important; scrollbar-arrow-color: ButtonText !important; }
+      * { font-size: 102%; font-family: sans-serif; color: #ccc; box-sizing: border-box; scrollbar-face-color: ThreeDFace !important; scrollbar-shadow-color: ThreeDDarkShadow !important; scrollbar-highlight-color: ThreeDHighlight !important; scrollbar-3dlight-color: ThreeDLightShadow !important; scrollbar-darkshadow-color: ThreeDDarkShadow !important; scrollbar-track-color: Scrollbar !important; scrollbar-arrow-color: ButtonText !important; }
       html, body { padding: 0; margin: 0; background: rgba(22,22,22,1); }
 			::-webkit-scrollbar { width: 6px; height: 6px; }
 			::-webkit-scrollbar-thumb { background: #5a5e78; border-radius: 0px; }
@@ -19,6 +19,9 @@
       input[type=number] { width: 125px; }
       #paychecks { width: 55px; }
       h2 { grid-column: 1 / 4; text-align: center; font-size: 1.2em; color: #fff; }
+
+      div.split { display: grid; grid-template-columns: 1fr 1fr; }
+      div.spouse { opacity: 0; transition: opacity 0.35s linear; }
 
       @media screen and (max-width: 835px) {
         h2 { grid-column: 1 / 2; }
@@ -36,15 +39,29 @@
               <label for="filingS">Filing Status:</label>
               <input type="radio" name="filing" id="filingS" value="single" CHECKED /> <label for="filingS">Single</label>
               &nbsp;<input type="radio" name="filing" id="filingJ" value="joint" /> <label for="filingJ">Joint</label>
-              &nbsp;<input type="radio" name="filing" id="filingH" value="head" /> <label for="filingH">Head of House</label>
+              &nbsp;<input type="radio" name="filing" id="filingH" value="head" /> <label for="filingH">Head of Household</label>
             </div>
-            <div>
-              <label for="income">Total Household Income:</label>
-              <input type="number" name="income" id="income" min="0" REQUIRED />
+            <div class="split">
+              <div>
+                <label for="income">Income:</label>
+                <input type="number" name="income" id="income" min="0" REQUIRED />
+              </div>
+              <div class="spouse">
+                <label for="income2">2nd Income:</label>
+                <input type="number" name="income2" id="income2" min="0" />
+              </div>
+              <div>
+                <label for="paychecks"># of Paychecks:</label>
+                <input type="number" name="paychecks" id="paychecks" min="1" REQUIRED />
+              </div>
+              <div  class="spouse">
+                <label for="paychecks2">2nd # of Paychecks:</label>
+                <input type="number" name="paychecks2" id="paychecks2" min="1" />
+              </div>
             </div>
             <div>
               <label for="deduction">Deduction:</label>
-              <input type="number" name="deduction" id="deduction" min="0" value="24000" REQUIRED />
+              <input type="number" name="deduction" id="deduction" min="0" value="12950" REQUIRED />
             </div>
             <div>
               <label for="children"># of Children:</label>
@@ -65,10 +82,6 @@
                 </select>
             </div>
             <div>
-              <label for="paychecks">Number of Paychecks:</label>
-              <input type="number" name="paychecks" id="paychecks" min="1" REQUIRED />
-            </div>
-            <div>
               <br /><input type="submit" value="Calculate Taxes" />
             </div>
           </form>
@@ -79,8 +92,13 @@
     </div>
   </body>
   <script>
-    moneyFormat = { style:'currency', currency:'USD', minimumFractionDigits: 0 };
+    moneyFormat = { style:'currency', currency:'USD', minimumFractionDigits: 2 };
     childDeduction = 2000;
+    standardDeductions = {
+      single: 12950,
+      joint: 25900,
+      head: 19400
+    };
     taxableIncome = [];
     taxBrackets = {
       single: {
@@ -112,14 +130,37 @@
       }
     }
     $(function(){
+      selectedSplit = 'single';
+
+      $(document).on('change','input[name=filing]', async function(e){
+        if($('#deduction').val() == standardDeductions[selectedSplit]){
+          $('#deduction').val(standardDeductions[$('input[name=filing]:checked').val()].toString());
+        }
+        if($('input[name=filing]:checked').val() == 'joint'){
+          // show two incomes
+          $('.spouse').css('opacity','1');
+          $('.spouse input').prop('required', true);
+        } else {
+          // show one income
+          $('.spouse').css('opacity','0');
+          $('.spouse input').prop('required', false).val(0);
+        }
+        selectedSplit = $('input[name=filing]:checked').val();
+      });
+
       $(document).on('submit','#calc', async function(e){
         e.preventDefault();
         taxableIncome = [];
         fields = await formFieldsArray($(this).serialize());
         output = $('#output');
         output.empty();
-        taxableIncome.push(fields['income']);
-        output.append(`Household income:<br />&emsp;${taxableIncome[taxableIncome.length-1].toLocaleString('en-US', moneyFormat)}`);
+        if(fields['filing'] == 'joint'){
+          taxableIncome.push((fields['income'] + fields['income2']));
+          output.append(`Household income:<br />&emsp;${fields['income'].toLocaleString('en-US', moneyFormat)} + ${fields['income2'].toLocaleString('en-US', moneyFormat)} = ${taxableIncome[taxableIncome.length-1].toLocaleString('en-US', moneyFormat)}`);
+        } else {
+          taxableIncome.push(fields['income']);
+          output.append(`Household income:<br />&emsp;${taxableIncome[taxableIncome.length-1].toLocaleString('en-US', moneyFormat)}`);
+        }
         taxableIncome.push(taxableIncome[taxableIncome.length-1] - fields['deduction']);
         output.append(`<br />Deduction:<br />&emsp;${taxableIncome[taxableIncome.length-2].toLocaleString('en-US', moneyFormat)} - ${fields['deduction'].toLocaleString('en-US', moneyFormat)} = ${taxableIncome[taxableIncome.length-1].toLocaleString('en-US', moneyFormat)}`);
         if(fields['children'] > 0){
@@ -131,9 +172,17 @@
 
         output.append(`<br /><strong>Estimated tax due:<br />&emsp;${(fedTax).toLocaleString('en-US', moneyFormat)}</strong>`);
 
-        output.append(`<br /><br /><strong>&emsp;${(fedTax / fields['paychecks']).toLocaleString('en-US', moneyFormat)} per paycheck</strong>`);
+        
         if(fields['filing'] == 'joint'){
-          output.append(`<br /><strong>&emsp;${((fedTax / fields['paychecks']) / 2).toLocaleString('en-US', moneyFormat)} per person, per paycheck</strong>`);
+          percIncome1 = ((fields['income'] / (fields['income'] + fields['income2'])));
+          incomeTax1 = (fedTax * percIncome1);
+          incomeTax2 = (fedTax - incomeTax1);
+          output.append(`<br /><br /><strong>&emsp;Income #1 [${Math.round(percIncome1 * 100)}%] ${incomeTax1.toLocaleString('en-US', moneyFormat)} taxes due</strong>`);
+          output.append(`<br /><strong>&emsp;&emsp; ${(incomeTax1 / fields['paychecks']).toLocaleString('en-US', moneyFormat)} per paycheck</strong>`);
+          output.append(`<br /><br /><strong>&emsp;Income #2 [${(100 - Math.round(percIncome1 * 100))}%] ${incomeTax2.toLocaleString('en-US', moneyFormat)} taxes due</strong>`);
+          output.append(`<br /><strong>&emsp;&emsp; ${(incomeTax2 / fields['paychecks2']).toLocaleString('en-US', moneyFormat)} per paycheck</strong>`);
+        } else {
+          output.append(`<br /><br /><strong>&emsp;${(fedTax / fields['paychecks']).toLocaleString('en-US', moneyFormat)} per paycheck</strong>`);
         }
         return false;
       });
