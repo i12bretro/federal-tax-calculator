@@ -56,7 +56,7 @@
               </div>
               <div  class="spouse">
                 <label for="paychecks2">2nd # of Paychecks:</label>
-                <input type="number" name="paychecks2" id="paychecks2" min="1" />
+                <input type="number" name="paychecks2" id="paychecks2" min="0" />
               </div>
             </div>
             <div>
@@ -139,11 +139,11 @@
         if($('input[name=filing]:checked').val() == 'joint'){
           // show two incomes
           $('.spouse').css('opacity','1');
-          $('.spouse input').prop('required', true);
+          $('.spouse input').prop('required', true).attr('min','1');
         } else {
           // show one income
           $('.spouse').css('opacity','0');
-          $('.spouse input').prop('required', false).val(0);
+          $('.spouse input').prop('required', false).attr('min','0').val(0);
         }
         selectedSplit = $('input[name=filing]:checked').val();
       });
